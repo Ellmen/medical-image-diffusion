@@ -1,0 +1,6 @@
+data/DRIVE
+models
+venv
+runs
+.snakemake
+*.pyc
