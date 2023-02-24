@@ -38,36 +38,34 @@ class SegmentationData(object):
         return len(self._images)
 
 # Step 1: Build a nn.Sequential with two conv-BatchN-Relu layers
-def baseblock(channel_in, channel_out):
-#     Design a baseblock with conv-batch-relu x 2 (each input is twice convolved as in fig.)
+def baseblock(channel_in, channel_out, momentum):
     return nn.Sequential(
-        # your code here
        # nn.Conv2d(channel_in, channel_in, 3),
        # nn.Conv2d(channel_in, channel_out, 3, stride=2),
        nn.Conv2d(channel_in, channel_out, kernel_size=3, padding=1, bias=False),
-       nn.BatchNorm2d(channel_out),
+       nn.BatchNorm2d(channel_out, momentum=momentum),
        nn.ReLU(inplace=True),
        nn.Conv2d(channel_out, channel_out, kernel_size=3, padding=1, bias=False),
-       nn.BatchNorm2d(channel_out),
+       nn.BatchNorm2d(channel_out, momentum=momentum),
        nn.ReLU(inplace=True)
     )  
 
 # Step 2: Build a downscaling module [Hint: use the above layeredConv after that]
 # Add a maxpool before baseblock as in figure
-def downsamplePart(channel_in, channel_out):
+def downsamplePart(channel_in, channel_out, momentum):
     return nn.Sequential(
         nn.MaxPool2d(2),
-        baseblock(channel_in, channel_out)
+        baseblock(channel_in, channel_out, momentum)
     )
 
 # Step 3: Build a upscaling module [Hint: use the above layeredConv after that]
 # - Remember there is also concatenation and size may change so we are padding
 class upsampledPart(nn.Module):
-    def __init__(self, channel_in, channel_out, bilinear=True):
+    def __init__(self, channel_in, channel_out, bilinear=True, momentum=0.1):
         super().__init__()
         #self.up = nn.Upsample(scale_factor=2, mode = 'bilinear', align_corners=True)
         self.up = nn.ConvTranspose2d(channel_in, channel_out, kernel_size=2, stride=2)
-        self.conv = baseblock(channel_in, channel_out)
+        self.conv = baseblock(channel_in, channel_out, momentum)
         
     def forward(self, x1, x2):
         # upscale and then pad to eliminate any difference between upscaled and other feature map coming with skip connection     
@@ -87,26 +85,26 @@ class upsampledPart(nn.Module):
 # Step 4: Compile all of above together
 # here output channel should be equal to number of classes
 class UNet(nn.Module):
-    def __init__(self, channel_in, channel_out, bilinear=None):
+    def __init__(self, channel_in, channel_out, bilinear=None, momentum=0.1):
         super(UNet,self).__init__()
         self.channel_in = channel_in
         self.channel_out = channel_out
         
         #call your base block
-        self.initial = baseblock(channel_in, 64)
+        self.initial = baseblock(channel_in, 64, momentum)
         
         # downsampling layers with 2 conv layers
-        self.down1 = downsamplePart(64, 128)
-        self.down2 = downsamplePart(128, 256)
-        self.down3 = downsamplePart(256, 512)
-        self.down4 = downsamplePart(512, 1024)
+        self.down1 = downsamplePart(64, 128, momentum)
+        self.down2 = downsamplePart(128, 256, momentum)
+        self.down3 = downsamplePart(256, 512, momentum)
+        self.down4 = downsamplePart(512, 1024, momentum)
         
         # your code here
         # upsampling layers with feature concatenation and 2 conv layers 
-        self.up1 = upsampledPart(1024, 512) 
-        self.up2 = upsampledPart(512, 256)
-        self.up3 = upsampledPart(256, 128)
-        self.up4 = upsampledPart(128, 64)
+        self.up1 = upsampledPart(1024, 512, momentum=momentum) 
+        self.up2 = upsampledPart(512, 256, momentum=momentum)
+        self.up3 = upsampledPart(256, 128, momentum=momentum)
+        self.up4 = upsampledPart(128, 64, momentum=momentum)
         
         # output layer
         self.out = nn.Conv2d(64, channel_out, kernel_size=1) 

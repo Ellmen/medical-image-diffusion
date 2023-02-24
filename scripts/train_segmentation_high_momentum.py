@@ -17,7 +17,7 @@ from utils.segmentation import UNet
 from utils.training import train_model
 
 
-def train_segmentation(data_path, out_path):
+def train_segmentation_alt(data_path, out_path):
 
     traindataloader, valdataloader, testdataloader = get_data(data_path)
 
@@ -25,7 +25,7 @@ def train_segmentation(data_path, out_path):
     print('Number of validation batches:', len(valdataloader))
     print('Number of testing batches:', len(testdataloader))
 
-    model = UNet(channel_in=1, channel_out=1)
+    model = UNet(channel_in=1, channel_out=1, momentum=0.25)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = model.to(device)
 
@@ -39,4 +39,4 @@ def train_segmentation(data_path, out_path):
         valdataloader
     )
 
-train_segmentation(snakemake.input[0], snakemake.output[0])
+train_segmentation_alt(snakemake.input[0], snakemake.output[0])
